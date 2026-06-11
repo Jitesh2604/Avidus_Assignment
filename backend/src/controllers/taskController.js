@@ -2,6 +2,13 @@ const { validationResult } = require('express-validator');
 const Task = require('../models/Task');
 const { logActivity } = require('../services/activityLogService');
 
+const serverError = (res, message, err) =>
+  res.status(500).json({
+    success: false,
+    message,
+    ...(process.env.NODE_ENV !== 'production' && { error: err.message }),
+  });
+
 const getTasks = async (req, res) => {
   try {
     const { status, priority, page = 1, limit = 20 } = req.query;
@@ -18,7 +25,7 @@ const getTasks = async (req, res) => {
 
     res.status(200).json({ success: true, total, page: Number(page), tasks });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to fetch tasks.', error: err.message });
+    serverError(res, 'Failed to fetch tasks.', err);
   }
 };
 
@@ -49,7 +56,7 @@ const createTask = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Task created.', task });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to create task.', error: err.message });
+    serverError(res, 'Failed to create task.', err);
   }
 };
 
@@ -61,7 +68,7 @@ const getTask = async (req, res) => {
     }
     res.status(200).json({ success: true, task });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to fetch task.', error: err.message });
+    serverError(res, 'Failed to fetch task.', err);
   }
 };
 
@@ -93,7 +100,7 @@ const updateTask = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Task updated.', task });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to update task.', error: err.message });
+    serverError(res, 'Failed to update task.', err);
   }
 };
 
@@ -114,7 +121,7 @@ const deleteTask = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Task deleted.' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to delete task.', error: err.message });
+    serverError(res, 'Failed to delete task.', err);
   }
 };
 

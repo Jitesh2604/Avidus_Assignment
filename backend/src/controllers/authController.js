@@ -6,6 +6,13 @@ const { logActivity } = require('../services/activityLogService');
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
 
+const serverError = (res, message, err) =>
+  res.status(500).json({
+    success: false,
+    message,
+    ...(process.env.NODE_ENV !== 'production' && { error: err.message }),
+  });
+
 const register = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -47,7 +54,7 @@ const register = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Server error during registration.', error: err.message });
+    serverError(res, 'Server error during registration.', err);
   }
 };
 
@@ -94,7 +101,7 @@ const login = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Server error during login.', error: err.message });
+    serverError(res, 'Server error during login.', err);
   }
 };
 

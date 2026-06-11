@@ -3,6 +3,13 @@ const Task = require('../models/Task');
 const ActivityLog = require('../models/ActivityLog');
 const { logActivity } = require('../services/activityLogService');
 
+const serverError = (res, message, err) =>
+  res.status(500).json({
+    success: false,
+    message,
+    ...(process.env.NODE_ENV !== 'production' && { error: err.message }),
+  });
+
 // GET /admin/stats
 const getStats = async (req, res) => {
   try {
@@ -19,7 +26,7 @@ const getStats = async (req, res) => {
       stats: { totalUsers, totalTasks, completedTasks, pendingTasks, inProgressTasks },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to fetch stats.', error: err.message });
+    serverError(res, 'Failed to fetch stats.', err);
   }
 };
 
@@ -39,7 +46,7 @@ const getAllUsers = async (req, res) => {
 
     res.status(200).json({ success: true, total, page: Number(page), users });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to fetch users.', error: err.message });
+    serverError(res, 'Failed to fetch users.', err);
   }
 };
 
@@ -70,7 +77,7 @@ const updateUserStatus = async (req, res) => {
 
     res.status(200).json({ success: true, message: `User status updated to ${status}.`, user });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to update user status.', error: err.message });
+    serverError(res, 'Failed to update user status.', err);
   }
 };
 
@@ -100,7 +107,7 @@ const deleteUser = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'User and their tasks deleted.' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to delete user.', error: err.message });
+    serverError(res, 'Failed to delete user.', err);
   }
 };
 
@@ -124,7 +131,7 @@ const getAllTasks = async (req, res) => {
 
     res.status(200).json({ success: true, total, page: Number(page), tasks });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to fetch tasks.', error: err.message });
+    serverError(res, 'Failed to fetch tasks.', err);
   }
 };
 
@@ -148,7 +155,7 @@ const deleteAnyTask = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Task deleted by admin.' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to delete task.', error: err.message });
+    serverError(res, 'Failed to delete task.', err);
   }
 };
 
@@ -172,7 +179,7 @@ const getActivityLogs = async (req, res) => {
 
     res.status(200).json({ success: true, total, page: Number(page), logs });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to fetch activity logs.', error: err.message });
+    serverError(res, 'Failed to fetch activity logs.', err);
   }
 };
 
