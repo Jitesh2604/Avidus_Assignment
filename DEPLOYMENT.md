@@ -1,152 +1,156 @@
 # TaskFlow — Production Deployment Guide
 
+## Live URLs
+
+| Service | URL |
+|---|---|
+| **Frontend** | https://taskflow-frontend-pi-mocha.vercel.app |
+| **Backend API** | https://avidus-taskflow-api.vercel.app |
+| **Health check** | https://avidus-taskflow-api.vercel.app/api/health |
+
+---
+
 ## Architecture
 
 ```
-Vercel (Frontend)          Render (Backend)          MongoDB Atlas
-React + Vite        →      Node.js + Express   →     Cloud Database
-https://*.vercel.app       https://*.onrender.com    Atlas Free Tier
+Vercel (Frontend)                    Vercel (Backend)               MongoDB Atlas
+React + Vite                  →      Node.js + Express       →      Cloud Database
+taskflow-frontend-pi-mocha          avidus-taskflow-api             cluster0.hp93grv
 ```
 
-- **Frontend**: React 18, Vite, React Router v6 — deployed to Vercel
-- **Backend**: Node.js, Express, JWT auth — deployed to Render (free tier)
-- **Database**: MongoDB Atlas (free M0 tier, 512 MB)
+- **Frontend**: React 18, Vite, React Router v6 — Vercel project `taskflow-frontend`
+- **Backend**: Node.js, Express, JWT auth — Vercel project `avidus-taskflow-api` (serverless)
+- **Database**: MongoDB Atlas free M0 tier (`cluster0.hp93grv.mongodb.net`)
 
-All API calls are proxied through `VITE_API_URL`. No hardcoded URLs anywhere.
+Both frontend and backend are deployed on Vercel. The backend runs as a Vercel serverless function — all routes are handled by `backend/src/app.js` via `backend/vercel.json`.
 
 ---
 
 ## Prerequisites
 
-- GitHub account (repo already pushed)
+- GitHub account (repo: `Jitesh2604/Avidus_Assignment`)
 - [MongoDB Atlas](https://cloud.mongodb.com) account
-- [Render](https://render.com) account (connect GitHub)
-- [Vercel](https://vercel.com) account (connect GitHub)
+- [Vercel](https://vercel.com) account
 
 ---
 
 ## Step 1 — MongoDB Atlas
 
-1. Log in → **New Project** → create cluster (free M0 tier)
+1. Log in → create a free **M0** cluster
 2. **Database Access** → Add user → username + password → role: `readWriteAnyDatabase`
-3. **Network Access** → Add IP → `0.0.0.0/0` (allow all — required for Render dynamic IPs)
+3. **Network Access** → Add IP → `0.0.0.0/0` (required — Vercel uses dynamic IPs)
 4. **Connect** → Drivers → copy the connection string:
    ```
    mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
    ```
-   Replace `<username>` and `<password>` with your DB user credentials.
 
 ---
 
-## Step 2 — Render (Backend)
+## Step 2 — Deploy Backend to Vercel
 
-1. Go to [render.com](https://render.com) → **New** → **Web Service**
-2. Connect your GitHub repo: `Jitesh2604/Avidus_Assignment`
+1. Go to [vercel.com](https://vercel.com) → **Add New Project**
+2. Import repo `Jitesh2604/Avidus_Assignment`
 3. Configure:
 
    | Field | Value |
    |---|---|
-   | **Name** | `taskflow-backend` (or any name) |
    | **Root Directory** | `backend` |
-   | **Runtime** | Node |
-   | **Build Command** | `npm install` |
-   | **Start Command** | `node src/app.js` |
-   | **Instance Type** | Free |
+   | **Framework Preset** | Other |
+   | **Build Command** | *(leave blank)* |
+   | **Output Directory** | *(leave blank)* |
+   | **Install Command** | `npm install` |
 
-4. Under **Environment Variables**, add all of the following:
+4. Add environment variables:
 
    | Key | Value |
    |---|---|
-   | `PORT` | `5001` |
-   | `MONGO_URI` | Your Atlas connection string (from Step 1) |
-   | `JWT_SECRET` | A random 64+ character string (see tip below) |
+   | `MONGO_URI` | Your Atlas connection string |
+   | `JWT_SECRET` | Random 64+ char string (see tip below) |
    | `JWT_EXPIRES_IN` | `7d` |
    | `NODE_ENV` | `production` |
-   | `CLIENT_URL` | Your Vercel URL (add after Step 3, e.g. `https://taskflow.vercel.app`) |
+   | `CLIENT_URL` | Your frontend Vercel URL |
 
-   > **Tip — generate a secure JWT_SECRET:**
+   > **Generate JWT_SECRET:**
    > ```bash
    > node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
    > ```
 
-5. Click **Create Web Service**. Wait for the first deploy to succeed.
-6. Copy your service URL: `https://taskflow-backend.onrender.com`
+5. Click **Deploy**. Once live, copy the URL (e.g. `https://avidus-taskflow-api.vercel.app`).
 
 ---
 
-## Step 3 — Vercel (Frontend)
+## Step 3 — Deploy Frontend to Vercel
 
-1. Go to [vercel.com](https://vercel.com) → **Add New Project**
-2. Import your GitHub repo: `Jitesh2604/Avidus_Assignment`
-3. Configure:
+1. **Add New Project** → same repo → different root directory
+2. Configure:
 
    | Field | Value |
    |---|---|
-   | **Framework Preset** | Vite |
    | **Root Directory** | `frontend` |
+   | **Framework Preset** | Vite |
    | **Build Command** | `npm run build` |
    | **Output Directory** | `dist` |
    | **Install Command** | `npm install` |
 
-4. Under **Environment Variables**, add:
+3. Add environment variable:
 
    | Key | Value |
    |---|---|
-   | `VITE_API_URL` | `https://taskflow-backend.onrender.com/api` |
+   | `VITE_API_URL` | `https://avidus-taskflow-api.vercel.app/api` |
 
-   Replace the URL with your actual Render service URL from Step 2.
+4. Click **Deploy**.
 
-5. Click **Deploy**. Wait for build to complete.
-6. Copy your Vercel URL: `https://taskflow.vercel.app`
-
-7. **Go back to Render** → your backend service → Environment → update `CLIENT_URL` to your Vercel URL → **Save Changes** (triggers a redeploy).
+5. Copy the frontend URL and go back to the **backend project** → Settings → Environment Variables → update `CLIENT_URL` to the frontend URL → trigger a redeploy.
 
 ---
 
 ## Step 4 — Verify Deployment
 
-After both services are live:
-
 ```bash
-# 1. Health check
-curl https://taskflow-backend.onrender.com/api/health
+# Health check
+curl https://avidus-taskflow-api.vercel.app/api/health
+# Expected: {"status":"ok","timestamp":"..."}
 
-# Expected:
-# {"status":"ok","timestamp":"..."}
-
-# 2. Test registration
-curl -X POST https://taskflow-backend.onrender.com/api/auth/register \
+# Test registration
+curl -X POST https://avidus-taskflow-api.vercel.app/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"name":"Test User","email":"test@example.com","password":"test123","role":"user"}'
 
-# 3. Test login
-curl -X POST https://taskflow-backend.onrender.com/api/auth/login \
+# Test login
+curl -X POST https://avidus-taskflow-api.vercel.app/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"test123"}'
 ```
-
-Then open the Vercel URL in a browser and test the full flow manually.
 
 ---
 
 ## Environment Variables Reference
 
-### Backend (Render)
+### Backend (Vercel project: `avidus-taskflow-api`)
 
 | Variable | Required | Description |
 |---|---|---|
-| `PORT` | Yes | Port the server listens on (`5001`) |
 | `MONGO_URI` | Yes | MongoDB Atlas connection string |
 | `JWT_SECRET` | Yes | Secret key for signing JWT tokens (min 64 chars) |
 | `JWT_EXPIRES_IN` | No | Token expiry duration (default: `7d`) |
-| `NODE_ENV` | Yes | Set to `production` to suppress error details |
-| `CLIENT_URL` | Yes | Vercel frontend URL for CORS allow-list |
+| `NODE_ENV` | Yes | Set to `production` to suppress error details in responses |
+| `CLIENT_URL` | Yes | Frontend Vercel URL for CORS allow-list |
 
-### Frontend (Vercel)
+### Frontend (Vercel project: `taskflow-frontend`)
 
 | Variable | Required | Description |
 |---|---|---|
 | `VITE_API_URL` | Yes | Full URL to backend API including `/api` suffix |
+
+---
+
+## How the Backend Works on Vercel (Serverless)
+
+The backend uses a lazy MongoDB connection pattern compatible with Vercel's serverless runtime:
+
+- `backend/vercel.json` routes all requests to `src/app.js`
+- A middleware checks `mongoose.connection.readyState` before each request and connects if needed — mongoose caches the connection across warm invocations
+- `app.listen()` is skipped when `VERCEL=1` (set automatically by Vercel)
 
 ---
 
@@ -155,9 +159,9 @@ Then open the Vercel URL in a browser and test the full flow manually.
 ```bash
 # Backend
 cd backend
-cp .env.example .env         # fill in your values
+cp .env.example .env         # fill in MONGO_URI, JWT_SECRET etc.
 npm install
-node src/app.js              # runs on PORT from .env
+node src/app.js              # runs on http://localhost:5001
 
 # Frontend (new terminal)
 cd frontend
@@ -166,62 +170,59 @@ npm install
 npm run dev                  # runs on http://localhost:5173
 ```
 
-The Vite dev proxy in `vite.config.js` forwards all `/api` requests to the backend.
+The Vite dev proxy in `vite.config.js` forwards all `/api` requests to the local backend.
 `VITE_API_URL` is intentionally left unset locally so the proxy takes over.
 
 ---
 
-## Known Limitations (Free Tiers)
+## Known Limitations (Free Tier)
 
 | Platform | Limitation |
 |---|---|
-| Render free | Service sleeps after 15 min of inactivity; first request takes ~30s to cold-start |
+| Vercel serverless | 10s function timeout; cold starts on first request after inactivity |
 | MongoDB Atlas M0 | 512 MB storage, shared cluster, no dedicated resources |
-| Vercel free | 100 GB bandwidth/month, serverless functions limited |
+| Vercel free | 100 GB bandwidth/month, 12 serverless function deployments per day |
 
 ---
 
 ## Security Notes
 
-- **Admin self-registration is enabled** by design (the Register page has a role selector). In a real production app, restrict this to invite-only or seed the first admin manually via the DB.
-- **Rate limiting** is not implemented. If deploying publicly, add `express-rate-limit` on `/api/auth/login` and `/api/auth/register`.
-- **JWT tokens are stored in `localStorage`**. This is acceptable for this project scope but consider `httpOnly` cookies for higher-security requirements.
-- **`NODE_ENV=production`** must be set on Render — this suppresses internal error details from API responses.
-- Rotate `JWT_SECRET` immediately if the repo was ever public with the old secret committed.
+- **Admin self-registration is enabled** by design (Register page has a role selector). In a real production app restrict this to invite-only or seed the first admin directly in the DB.
+- **Rate limiting** is not implemented. Add `express-rate-limit` on `/api/auth/login` and `/api/auth/register` before exposing publicly.
+- **JWT tokens are stored in `localStorage`**. Acceptable for this scope; consider `httpOnly` cookies for stricter security.
+- **`NODE_ENV=production`** must be set — this suppresses internal `err.message` details from API error responses.
 
 ---
 
-## Production Deployment Checklist
+## Production Checklist
 
 ### MongoDB Atlas
-- [ ] Cluster created (free M0 tier)
-- [ ] Database user created with strong password
-- [ ] Network access set to `0.0.0.0/0`
-- [ ] Connection string copied
+- [x] Cluster created (free M0 tier) — `cluster0.hp93grv.mongodb.net`
+- [x] Database user created
+- [x] Network access set to `0.0.0.0/0`
+- [x] Connection string set in Vercel backend env vars
 
-### Render (Backend)
-- [ ] Root directory set to `backend`
-- [ ] Start command: `node src/app.js`
-- [ ] `PORT=5001` set
-- [ ] `MONGO_URI` set to Atlas connection string
-- [ ] `JWT_SECRET` set to a fresh 64+ char random string (not the dev value)
-- [ ] `NODE_ENV=production` set
-- [ ] `CLIENT_URL` set to Vercel URL
-- [ ] First deploy succeeded
-- [ ] `/api/health` returns `200 OK`
+### Vercel — Backend (`avidus-taskflow-api`)
+- [x] Root directory: `backend`
+- [x] `backend/vercel.json` present — routes all traffic to `src/app.js`
+- [x] `MONGO_URI` set
+- [x] `JWT_SECRET` set (64-char random string)
+- [x] `JWT_EXPIRES_IN=7d` set
+- [x] `NODE_ENV=production` set
+- [x] `CLIENT_URL` set to frontend URL
+- [x] `/api/health` returns `{"status":"ok"}`
 
-### Vercel (Frontend)
-- [ ] Root directory set to `frontend`
-- [ ] Framework preset: Vite
-- [ ] `VITE_API_URL` set to Render backend URL + `/api`
-- [ ] Build succeeds (`✓ built in ~555ms`)
-- [ ] App loads in browser without console errors
-- [ ] SPA routing works (refresh on `/dashboard` does not 404)
+### Vercel — Frontend (`taskflow-frontend`)
+- [x] Root directory: `frontend`
+- [x] Framework preset: Vite
+- [x] `VITE_API_URL=https://avidus-taskflow-api.vercel.app/api`
+- [x] Build succeeds
+- [x] SPA routing works (refresh on `/dashboard` does not 404)
 
 ### End-to-End
-- [ ] User registration works
-- [ ] User login works and redirects to dashboard
-- [ ] Admin login works and redirects to admin panel
+- [x] User registration works
+- [x] User login works and redirects to dashboard
+- [x] Admin login works and redirects to admin panel
 - [ ] Task create / update / delete works
 - [ ] Admin can view users, tasks, activity logs
 - [ ] Deactivating a user blocks their login
